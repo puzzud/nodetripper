@@ -25,6 +25,13 @@ NodeTripper.Game = function( game )
 
   this.bell = null;
   this.soundList = [];
+
+  this.currentTile = 0;
+  this.cursors = null;
+  this.player = null;
+  this.facing = 'left';
+  this.jumpTimer = 0;
+  this.jumpButton = null;
 };
 
 NodeTripper.Game.stateKey = "Game";
@@ -112,6 +119,8 @@ NodeTripper.Game.prototype.setupGraphics = function()
 
   this.circleSprite = this.createCircleSprite();
 
+  this.setupTilemap();
+
   this.game.world.bringToTop( allTextGroup );
 
   var background = this.game.add.sprite( 0, 0 );
@@ -148,6 +157,74 @@ NodeTripper.Game.prototype.setupGraphics = function()
   this.modalGroup.visible = false;
 };
 
+NodeTripper.Game.prototype.setupTilemap = function()
+{
+  this.game.stage.backgroundColor = '#2d2d2d';
+
+  //  Creates a blank tilemap
+  var map = this.game.add.tilemap();
+
+  //  This is our tileset - it's just a BitmapData filled with a selection of randomly colored tiles
+  //  but you could generate anything here
+  var bmd = this.game.make.bitmapData(32 * 25, 32 * 2);
+
+  var colors = Phaser.Color.HSVColorWheel();
+
+  var i = 0;
+
+  for (var y = 0; y < 2; y++)
+  {
+      for (var x = 0; x < 25; x++)
+      {
+          bmd.rect(x * 32, y * 32, 32, 32, colors[i].rgba);
+          i += 6;
+      }
+  }
+
+  //  Add a Tileset image to the map
+  map.addTilesetImage('tiles', bmd);
+
+  //  Creates a new blank layer and sets the map dimensions.
+  //  In this case the map is 40x30 tiles in size and the tiles are 32x32 pixels in size.
+  this.layer = map.create('level1', 40, 30, 32, 32);
+
+  //  Populate some tiles for our player to start on
+  map.putTile(30, 2, 10, this.layer);
+  map.putTile(30, 3, 10, this.layer);
+  map.putTile(30, 4, 10, this.layer);
+  map.putTile(31, 7, 12, this.layer);
+  map.putTile(31, 8, 12, this.layer);
+  map.putTile(31, 9, 12, this.layer);
+  map.putTile(32, 12, 14, this.layer);
+  map.putTile(32, 13, 14, this.layer);
+  map.putTile(32, 14, 14, this.layer);
+  map.putTile(34, 17, 16, this.layer);
+  map.putTile(34, 18, 16, this.layer);
+  map.putTile(34, 19, 16, this.layer);
+
+  map.setCollisionByExclusion([0]);
+
+  this.setupPlayer();
+};
+
+NodeTripper.Game.prototype.setupPlayer = function()
+{
+  this.player = this.game.add.sprite(64, 100, 'dude');
+  this.game.physics.arcade.enable(this.player);
+  this.game.physics.arcade.gravity.y = 350;
+
+  this.player.body.bounce.y = 0.1;
+  this.player.body.collideWorldBounds = true;
+  this.player.body.setSize(20, 32, 5, 16);
+
+  this.player.animations.add('left', [0, 1, 2, 3], 10, true);
+  this.player.animations.add('turn', [4], 20, true);
+  this.player.animations.add('right', [5, 6, 7, 8], 10, true);
+
+  this.cursors = this.game.input.keyboard.createCursorKeys();
+  this.jumpButton = this.game.input.keyboard.addKey(Phaser.Keyboard.SPACEBAR);
+};
+
 NodeTripper.Game.prototype.setupSounds = function()
 {
   this.bell = this.game.add.audio( "bell2" );
@@ -157,6 +234,61 @@ NodeTripper.Game.prototype.setupSounds = function()
 NodeTripper.Game.prototype.update = function()
 {
   this.gamepadUpdate();
+
+  this.updatePlayer();
+};
+
+NodeTripper.Game.prototype.updatePlayer = function()
+{
+  this.game.physics.arcade.collide(this.player, this.layer);
+
+  this.player.body.velocity.x = 0;
+
+  if (this.cursors.left.isDown)
+  {
+      this.player.body.velocity.x = -150;
+
+      if (this.facing != 'left')
+      {
+          this.player.animations.play('left');
+          this.facing = 'left';
+      }
+  }
+  else if (this.cursors.right.isDown)
+  {
+      this.player.body.velocity.x = 150;
+
+      if (this.facing != 'right')
+      {
+          this.player.animations.play('right');
+          this.facing = 'right';
+      }
+  }
+  else
+  {
+      if (this.facing != 'idle')
+      {
+          this.player.animations.stop();
+
+          if (this.facing == 'left')
+          {
+              this.player.frame = 0;
+          }
+          else
+          {
+              this.player.frame = 5;
+          }
+
+          this.facing = 'idle';
+      }
+  }
+
+  if (this.jumpButton.isDown && this.player.body.onFloor() && this.game.time.now > this.jumpTimer)
+  {
+      this.player.body.velocity.y = -250;
+      this.jumpTimer = this.game.time.now + 750;
+  }
+
 };
 
 NodeTripper.Game.prototype.escapeKeyDown = function( button )

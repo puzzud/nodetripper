@@ -31,6 +31,8 @@ NodeTripper.Preloader.prototype.preload = function()
   this.load.setPreloadSprite( this.preloader );
 
   this.load.audio( "bell2", "assets/sounds/bell2.wav" );
+
+  this.game.load.spritesheet('dude', 'assets/graphics/dude.png', 32, 48);
 };
 
 NodeTripper.Preloader.prototype.create = function()
